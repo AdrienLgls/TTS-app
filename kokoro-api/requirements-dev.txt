@@ -1,0 +1,25 @@
+# Dépendances de développement pour l'API Kokoro TTS
+# Installation : pip install -r requirements-dev.txt
+
+# Dépendances principales (production)
+-r requirements_officiel.txt
+
+# Outils de développement et debugging
+ipython>=8.0.0              # REPL amélioré pour debugging
+pytest>=7.0.0               # Framework de tests
+pytest-asyncio>=0.21.0      # Support tests asynchrones
+httpx>=0.24.0               # Client HTTP pour tests API
+
+# Qualité de code
+black>=23.0.0               # Formatage automatique du code
+isort>=5.0.0                # Organisation des imports
+flake8>=6.0.0               # Linting et vérification syntaxe
+mypy>=1.0.0                 # Vérification de types statique
+
+# Documentation
+sphinx>=5.0.0               # Génération de documentation
+sphinx-autodoc-typehints    # Support type hints dans docs
+
+# Performance et profiling
+memory-profiler>=0.60.0     # Profiling mémoire
+line-profiler>=4.0.0        # Profiling ligne par ligne

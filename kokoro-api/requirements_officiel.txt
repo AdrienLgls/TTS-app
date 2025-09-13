@@ -1,0 +1,14 @@
+# Dépendances officielles Kokoro selon pyproject.toml
+kokoro>=0.9.4
+soundfile
+huggingface_hub
+loguru
+misaki[en]>=0.9.4
+numpy
+torch
+transformers
+
+# Pour l'API FastAPI (optionnel pour les tests locaux)
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+python-multipart==0.0.6

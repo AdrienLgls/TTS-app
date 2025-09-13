@@ -1,0 +1,145 @@
+# ===============================
+# PROJET TTS - CONFIGURATION GIT
+# ===============================
+
+# Fichiers système
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Éditeurs et IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===============================
+# BACKEND (API KOKORO)
+# ===============================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.env
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Fichiers temporaires API
+kokoro-api/temp_audio/
+*.wav
+*.mp3
+*.ogg
+
+# Modèles et cache
+kokoro-api/models/
+kokoro-api/.cache/
+*.pkl
+*.pth
+
+# Logs
+*.log
+logs/
+
+# ===============================
+# FRONTEND (REACT)
+# ===============================
+
+# Dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Build outputs
+frontend/dist/
+frontend/build/
+*.tsbuildinfo
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage
+coverage/
+*.lcov
+
+# Environment variables
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ===============================
+# DÉVELOPPEMENT ET TESTS
+# ===============================
+
+# Tests
+.coverage
+htmlcov/
+.pytest_cache/
+.nyc_output
+
+# Documentation générée
+docs/_build/
+
+# Base de données de développement
+*.db
+*.sqlite
+*.sqlite3
+
+# ===============================
+# DÉPLOIEMENT
+# ===============================
+
+# Fichiers de déploiement sensibles
+*.pem
+*.key
+docker-compose.override.yml
+.env.production
+
+# Statistiques et monitoring
+stats.json
+
+# ===============================
+# SPÉCIFIQUE AU PROJET TTS
+# ===============================
+
+# Fichiers de test audio générés
+test_*.wav
+kokoro_*.wav
+
+# Cache modèles ML
+.cache/
+*.cache
+
+# Fichiers de configuration locale
+.env
+.env.local
+.env.*.local
+
+# Logs spécifiques
+kokoro_api.log
+tts_app.log
+
+# Dépôt Kokoro cloné (sous-module non géré)
+kokoro-api/kokoro/
