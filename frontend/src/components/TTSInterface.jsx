@@ -52,7 +52,7 @@ const TTSInterface = () => {
 
   // URL de l'API Kokoro optimisée (environnement de développement)
   // Production : remplacer par l'URL du serveur déployé
-  const API_BASE_URL = 'http://localhost:8000';
+  const API_BASE_URL = '/api';
 
   // ===============================
   // FONCTIONS MÉTIERS

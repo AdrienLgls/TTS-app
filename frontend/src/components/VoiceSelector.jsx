@@ -30,7 +30,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }) => {
   const [error, setError] = useState(null);
 
   // Configuration API (coherte avec TTSInterface)
-  const API_BASE_URL = 'http://localhost:8000';
+  const API_BASE_URL = '/api';
 
   // ===============================
   // CHARGEMENT DES DONNÉES
