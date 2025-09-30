@@ -12,12 +12,21 @@
  */
 
 import { useState, useRef } from 'react';
+import { Link } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import VoiceSelector from './VoiceSelector';
 import AudioPlayer from './AudioPlayer';
+import UserHistory from './UserHistory';
 import './TTSInterface.css';
 
 const TTSInterface = () => {
+  // ===============================
+  // AUTHENTIFICATION
+  // ===============================
+
+  const { user, logout } = useAuth();
+
   // ===============================
   // ÉTATS DE L'APPLICATION
   // ===============================
@@ -50,9 +59,11 @@ const TTSInterface = () => {
   // Référence pour la zone de texte (focus automatique)
   const textareaRef = useRef(null);
 
-  // URL de l'API Kokoro optimisée (environnement de développement)
-  // Production : remplacer par l'URL du serveur déployé
-  const API_BASE_URL = '/api';
+  // URL de l'API backend authentifiée
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+
+  // URL de l'API TTS Kokoro
+  const TTS_API_URL = import.meta.env.VITE_TTS_API_URL || 'http://localhost:8000';
 
   // ===============================
   // FONCTIONS MÉTIERS
@@ -73,8 +84,10 @@ const TTSInterface = () => {
       return;
     }
 
-    if (text.length > 2000) {
-      setError('Le texte ne peut pas dépasser 2000 caractères');
+    // Limite dynamique selon l'authentification
+    const maxLength = user ? 2000 : 300;
+    if (text.length > maxLength) {
+      setError(`Le texte ne peut pas dépasser ${maxLength} caractères${!user ? ' (connectez-vous pour 2000 caractères)' : ''}`);
       return;
     }
 
@@ -85,7 +98,7 @@ const TTSInterface = () => {
     try {
       console.log('🎤 Génération audio avec:', { text: text.substring(0, 50) + '...', voice: selectedVoice, speed });
 
-      const response = await axios.post(`${API_BASE_URL}/tts`, {
+      const response = await axios.post(`${TTS_API_URL}/tts`, {
         text: text,
         voice: selectedVoice,
         speed: speed,
@@ -93,9 +106,9 @@ const TTSInterface = () => {
       });
 
       if (response.data.success) {
-        const audioFullUrl = `${API_BASE_URL}${response.data.audio_url}`;
+        const audioFullUrl = `${TTS_API_URL}${response.data.audio_url}`;
         setAudioUrl(audioFullUrl);
-        
+
         // Sauvegarder les infos de la génération
         setLastGeneration({
           text: text,
@@ -108,6 +121,29 @@ const TTSInterface = () => {
         });
 
         console.log('✅ Audio généré:', response.data);
+
+        // Sauvegarder dans l'historique si l'utilisateur est connecté
+        if (user) {
+          try {
+            await axios.post(`${API_BASE_URL}/generations`, {
+              text: text,
+              voice: selectedVoice,
+              speed: speed,
+              audio_url: response.data.audio_url,
+              audio_duration: response.data.audio_duration,
+              generation_time: response.data.generation_time
+            }, {
+              withCredentials: true
+            });
+            console.log('✅ Génération sauvegardée dans l\'historique');
+
+            // Déclencher un événement pour rafraîchir l'historique
+            window.dispatchEvent(new Event('historyUpdated'));
+          } catch (saveError) {
+            console.error('⚠️ Erreur lors de la sauvegarde dans l\'historique:', saveError);
+            // On ne bloque pas l'utilisateur si la sauvegarde échoue
+          }
+        }
       } else {
         throw new Error(response.data.message || 'Erreur lors de la génération');
       }
@@ -175,140 +211,186 @@ const TTSInterface = () => {
 
   return (
     <div className="tts-interface">
+
+      {/* Header */}
+      <header className="app-header">
+        <nav className="nav">
+          <Link to="/" className="logo">VoiceAI</Link>
+          <div className="nav-links">
+            <Link to="/" className="nav-link">Accueil</Link>
+            <div className="user-info">
+              {user ? (
+                <>
+                  <span className="user-greeting">Bonjour, {user.name}</span>
+                  <button onClick={logout} className="logout-btn">Déconnexion</button>
+                </>
+              ) : (
+                <span className="user-greeting">Interface TTS</span>
+              )}
+            </div>
+          </div>
+        </nav>
+      </header>
+
       <div className="tts-container">
         
-        {/* Section de saisie de texte */}
-        <div className="text-input-section">
-          <label htmlFor="text-input" className="input-label">
-            Texte à synthétiser ({text.length}/2000)
-          </label>
-          
-          <textarea
-            ref={textareaRef}
-            id="text-input"
-            className="text-input"
-            placeholder="Saisissez le texte à convertir en audio..."
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            rows={6}
-            maxLength={2000}
-          />
-
-          {/* Exemples de texte */}
-          <div className="examples-section">
-            <span className="examples-label">Exemples :</span>
-            <div className="examples-buttons">
-              {examples.map((example, index) => (
-                <button
-                  key={index}
-                  className="example-button"
-                  onClick={() => handleExampleText(example)}
-                  title={example}
-                >
-                  Exemple {index + 1}
-                </button>
-              ))}
-            </div>
+        {/* Main Content */}
+        <div className="main-content">
+          <div className="content-header">
+            <h1 className="page-title">Synthèse Vocale</h1>
+            <p className="page-subtitle">Transformez votre texte en voix naturelle avec l'IA Kokoro</p>
           </div>
-        </div>
 
-        {/* Section de configuration */}
-        <div className="config-section">
-          <div className="config-row">
-            {/* Sélecteur de voix */}
-            <VoiceSelector
-              selectedVoice={selectedVoice}
-              onVoiceChange={setSelectedVoice}
+          {/* Section de saisie de texte */}
+          <div className="text-input-section glass-card">
+            <div className="section-header">
+              <h3 className="section-title">Votre texte</h3>
+              <span className="char-counter">{text.length}/{user ? '2000' : '300'} caractères</span>
+            </div>
+
+            <textarea
+              ref={textareaRef}
+              id="text-input"
+              className="text-input modern-input"
+              placeholder={user ? "Saisissez le texte à convertir en audio..." : "Saisissez un texte court (max 300 caractères) - Connectez-vous pour plus !"}
+              value={text}
+              onChange={(e) => setText(e.target.value)}
+              rows={6}
+              maxLength={user ? 2000 : 300}
             />
 
-            {/* Contrôle de vitesse */}
-            <div className="speed-control">
-              <label htmlFor="speed-slider" className="control-label">
-                Vitesse: {speed}x
-              </label>
-              <input
-                type="range"
-                id="speed-slider"
-                className="speed-slider"
-                min="0.5"
-                max="2.0"
-                step="0.1"
-                value={speed}
-                onChange={(e) => setSpeed(parseFloat(e.target.value))}
+            {/* Exemples de texte */}
+            <div className="examples-section">
+              <h4 className="examples-title">Textes d'exemple</h4>
+              <div className="examples-grid">
+                {examples.map((example, index) => (
+                  <button
+                    key={index}
+                    className="example-card"
+                    onClick={() => handleExampleText(example)}
+                    title={example}
+                  >
+                    <div className="example-icon">📝</div>
+                    <span className="example-label">Exemple {index + 1}</span>
+                    <span className="example-preview">{example.substring(0, 40)}...</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          {/* Section de configuration */}
+          <div className="config-section">
+            <div className="config-grid">
+              {/* Sélecteur de voix */}
+              <div className="config-card glass-card">
+                <VoiceSelector
+                  selectedVoice={selectedVoice}
+                  onVoiceChange={setSelectedVoice}
+                />
+              </div>
+
+              {/* Contrôle de vitesse */}
+              <div className="config-card glass-card">
+                <div className="speed-control">
+                  <div className="control-header">
+                    <h4 className="control-title">Vitesse de lecture</h4>
+                    <span className="speed-value">{speed}x</span>
+                  </div>
+                  <input
+                    type="range"
+                    id="speed-slider"
+                    className="speed-slider modern-slider"
+                    min="0.5"
+                    max="2.0"
+                    step="0.1"
+                    value={speed}
+                    onChange={(e) => setSpeed(parseFloat(e.target.value))}
+                  />
+                  <div className="speed-marks">
+                    <span>Lent</span>
+                    <span>Normal</span>
+                    <span>Rapide</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bouton de génération */}
+          <div className="generate-section">
+            <button
+              className={`generate-button btn-gradient ${isLoading ? 'loading' : ''} ${!text.trim() ? 'disabled' : ''}`}
+              onClick={handleGenerate}
+              disabled={isLoading || !text.trim()}
+            >
+              {isLoading ? (
+                <>
+                  <span className="loading-spinner">⟳</span>
+                  <span>Génération en cours...</span>
+                </>
+              ) : (
+                <>
+                  <span className="generate-icon">🎤</span>
+                  <span>Générer l'audio</span>
+                </>
+              )}
+            </button>
+          </div>
+
+          {/* Affichage des erreurs */}
+          {error && (
+            <div className="error-message modern-alert error">
+              <div className="alert-icon">⚠️</div>
+              <div className="alert-content">
+                <h4>Erreur</h4>
+                <p>{error}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Lecteur audio et téléchargement */}
+          {audioUrl && (
+            <div className="audio-section glass-card">
+              <AudioPlayer
+                audioUrl={audioUrl}
+                onDownload={handleDownload}
+                generationInfo={lastGeneration}
               />
-              <div className="speed-marks">
-                <span>Lent</span>
-                <span>Normal</span>
-                <span>Rapide</span>
+            </div>
+          )}
+
+
+          {/* Message d'incitation pour les non-connectés */}
+          {!user && audioUrl && (
+            <div className="upgrade-banner glass-card">
+              <div className="banner-content">
+                <div className="banner-icon">🎉</div>
+                <div className="banner-text">
+                  <h3>Vous aimez VoiceAI ?</h3>
+                  <p>Créez un compte gratuit pour débloquer toutes les fonctionnalités :</p>
+                  <ul className="feature-list">
+                    <li>✅ Générez jusqu'à <strong>2000 caractères</strong> au lieu de 300</li>
+                    <li>✅ Téléchargez vos <strong>fichiers audio</strong></li>
+                    <li>✅ Consultez votre <strong>historique complet</strong></li>
+                    <li>✅ Sauvegardez vos <strong>préférences</strong></li>
+                  </ul>
+                </div>
+              </div>
+              <div className="banner-actions">
+                <Link to="/register" className="btn-gradient">
+                  Créer un compte gratuit
+                </Link>
+                <Link to="/login" className="btn-secondary">
+                  Se connecter
+                </Link>
               </div>
             </div>
-          </div>
+          )}
+
+          {/* Historique utilisateur */}
+          {user && <UserHistory />}
         </div>
-
-        {/* Bouton de génération */}
-        <div className="generate-section">
-          <button
-            className={`generate-button ${isLoading ? 'loading' : ''}`}
-            onClick={handleGenerate}
-            disabled={isLoading || !text.trim()}
-          >
-            {isLoading ? (
-              <>
-                <span className="loading-spinner">⟳</span>
-                Génération en cours...
-              </>
-            ) : (
-              'Générer l\'audio'
-            )}
-          </button>
-        </div>
-
-        {/* Affichage des erreurs */}
-        {error && (
-          <div className="error-message">
-            {error}
-          </div>
-        )}
-
-        {/* Lecteur audio et téléchargement */}
-        {audioUrl && (
-          <div className="audio-section">
-            <AudioPlayer
-              audioUrl={audioUrl}
-              onDownload={handleDownload}
-              generationInfo={lastGeneration}
-            />
-          </div>
-        )}
-
-        {/* Informations de la dernière génération */}
-        {lastGeneration && (
-          <div className="generation-info">
-            <h4>Dernière génération</h4>
-            <div className="info-grid">
-              <div className="info-item">
-                <span className="info-label">Voix:</span>
-                <span className="info-value">{lastGeneration.voice}</span>
-              </div>
-              <div className="info-item">
-                <span className="info-label">Durée:</span>
-                <span className="info-value">{lastGeneration.duration?.toFixed(2)}s</span>
-              </div>
-              <div className="info-item">
-                <span className="info-label">Génération:</span>
-                <span className="info-value">{lastGeneration.generationTime?.toFixed(2)}s</span>
-              </div>
-              <div className="info-item">
-                <span className="info-label">Segments:</span>
-                <span className="info-value">{lastGeneration.segments}</span>
-              </div>
-              <div className="info-item">
-                <span className="info-label">Heure:</span>
-                <span className="info-value">{lastGeneration.timestamp}</span>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

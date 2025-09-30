@@ -13,9 +13,11 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import './AudioPlayer.css';
 
 const AudioPlayer = ({ audioUrl, onDownload, generationInfo }) => {
+  const { user } = useAuth();
   // ===============================
   // ÉTATS DU LECTEUR AUDIO
   // ===============================
@@ -165,9 +167,7 @@ const AudioPlayer = ({ audioUrl, onDownload, generationInfo }) => {
   };
 
   return (
-    <div className="audio-player">
-      <h3>Lecteur Audio</h3>
-      
+    <div className="audio-player modern">
       {/* Élément audio */}
       <audio
         ref={audioRef}
@@ -181,21 +181,36 @@ const AudioPlayer = ({ audioUrl, onDownload, generationInfo }) => {
         preload="metadata"
       />
 
+      {/* Header du lecteur */}
+      <div className="player-header">
+        <h3 className="player-title">🎵 Lecteur Audio</h3>
+        {generationInfo && (
+          <div className="player-badge">
+            <span className="voice-badge">{generationInfo.voice}</span>
+          </div>
+        )}
+      </div>
+
       {/* Interface du lecteur */}
       <div className="player-interface">
         
         {/* État de chargement */}
         {isLoading && (
-          <div className="loading-state">
-            <span className="loading-spinner">⟳</span>
-            Chargement de l'audio...
+          <div className="loading-state modern-loading">
+            <div className="loading-content">
+              <span className="loading-spinner">⟳</span>
+              <span>Chargement de l'audio...</span>
+            </div>
           </div>
         )}
 
         {/* Erreur */}
         {error && (
-          <div className="error-state">
-            {error}
+          <div className="error-state modern-alert">
+            <div className="alert-icon">⚠️</div>
+            <div className="alert-content">
+              <span>{error}</span>
+            </div>
           </div>
         )}
 
@@ -205,34 +220,40 @@ const AudioPlayer = ({ audioUrl, onDownload, generationInfo }) => {
             <div className="main-controls">
               {/* Bouton Play/Pause */}
               <button
-                className={`play-button ${isPlaying ? 'playing' : ''}`}
+                className={`play-button modern-btn ${isPlaying ? 'playing' : ''}`}
                 onClick={togglePlay}
                 disabled={isLoading || error}
               >
-                {isPlaying ? 'Pause' : 'Lire'}
+                <span className="btn-icon">{isPlaying ? '⏸️' : '▶️'}</span>
+                <span className="btn-text">{isPlaying ? 'Pause' : 'Lire'}</span>
               </button>
 
               {/* Informations temporelles */}
               <div className="time-info">
-                <span className="current-time">{formatTime(currentTime)}</span>
-                <span className="time-separator">/</span>
-                <span className="total-time">{formatTime(duration)}</span>
+                <div className="time-display">
+                  <span className="current-time">{formatTime(currentTime)}</span>
+                  <span className="time-separator">/</span>
+                  <span className="total-time">{formatTime(duration)}</span>
+                </div>
               </div>
 
-              {/* Bouton de téléchargement */}
-              <button
-                className="download-button"
-                onClick={onDownload}
-                title="Télécharger l'audio"
-              >
-                Télécharger
-              </button>
+              {/* Bouton de téléchargement - Seulement pour utilisateurs connectés */}
+              {user && (
+                <button
+                  className="download-button modern-btn secondary"
+                  onClick={onDownload}
+                  title="Télécharger l'audio"
+                >
+                  <span className="btn-icon">⬇️</span>
+                  <span className="btn-text">Télécharger</span>
+                </button>
+              )}
             </div>
 
             {/* Barre de progression */}
             <div className="progress-section">
               <div
-                className="progress-bar"
+                className="progress-bar modern-progress"
                 onClick={handleSeek}
               >
                 <div className="progress-track">
@@ -250,12 +271,15 @@ const AudioPlayer = ({ audioUrl, onDownload, generationInfo }) => {
 
             {/* Contrôle du volume */}
             <div className="volume-control">
-              <label className="volume-label">
-                Volume: {Math.round(volume * 100)}%
-              </label>
+              <div className="volume-header">
+                <span className="volume-icon">🔊</span>
+                <label className="volume-label">
+                  Volume: <span className="volume-value">{Math.round(volume * 100)}%</span>
+                </label>
+              </div>
               <input
                 type="range"
-                className="volume-slider"
+                className="volume-slider modern-slider"
                 min="0"
                 max="1"
                 step="0.01"
@@ -269,17 +293,35 @@ const AudioPlayer = ({ audioUrl, onDownload, generationInfo }) => {
         {/* Informations sur la génération */}
         {generationInfo && !isLoading && (
           <div className="generation-summary">
-            <div className="summary-item">
-              <span>Voix: <strong>{generationInfo.voice}</strong></span>
-            </div>
-            <div className="summary-item">
-              <span>Vitesse: <strong>{generationInfo.speed}x</strong></span>
-            </div>
-            <div className="summary-item">
-              <span>Généré en: <strong>{generationInfo.generationTime?.toFixed(2)}s</strong></span>
-            </div>
-            <div className="summary-item">
-              <span>Segments: <strong>{generationInfo.segments}</strong></span>
+            <div className="summary-grid">
+              <div className="summary-item">
+                <div className="summary-icon">🎭</div>
+                <div className="summary-content">
+                  <span className="summary-label">Voix</span>
+                  <span className="summary-value">{generationInfo.voice}</span>
+                </div>
+              </div>
+              <div className="summary-item">
+                <div className="summary-icon">⚡</div>
+                <div className="summary-content">
+                  <span className="summary-label">Vitesse</span>
+                  <span className="summary-value">{generationInfo.speed}x</span>
+                </div>
+              </div>
+              <div className="summary-item">
+                <div className="summary-icon">⏱️</div>
+                <div className="summary-content">
+                  <span className="summary-label">Génération</span>
+                  <span className="summary-value">{generationInfo.generationTime?.toFixed(2)}s</span>
+                </div>
+              </div>
+              <div className="summary-item">
+                <div className="summary-icon">📊</div>
+                <div className="summary-content">
+                  <span className="summary-label">Segments</span>
+                  <span className="summary-value">{generationInfo.segments}</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -287,7 +329,7 @@ const AudioPlayer = ({ audioUrl, onDownload, generationInfo }) => {
         {/* Actions supplémentaires */}
         <div className="player-actions">
           <button
-            className="action-button"
+            className="action-button modern-btn tertiary"
             onClick={() => {
               if (audioRef.current) {
                 audioRef.current.currentTime = 0;
@@ -297,11 +339,12 @@ const AudioPlayer = ({ audioUrl, onDownload, generationInfo }) => {
             disabled={isLoading || error}
             title="Revenir au début"
           >
-            Début
+            <span className="btn-icon">⏮️</span>
+            <span className="btn-text">Début</span>
           </button>
-          
+
           <button
-            className="action-button"
+            className="action-button modern-btn tertiary"
             onClick={() => {
               if (audioRef.current) {
                 audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - 10);
@@ -310,11 +353,12 @@ const AudioPlayer = ({ audioUrl, onDownload, generationInfo }) => {
             disabled={isLoading || error}
             title="Reculer de 10 secondes"
           >
-            -10s
+            <span className="btn-icon">⏪</span>
+            <span className="btn-text">-10s</span>
           </button>
-          
+
           <button
-            className="action-button"
+            className="action-button modern-btn tertiary"
             onClick={() => {
               if (audioRef.current && duration) {
                 audioRef.current.currentTime = Math.min(duration, audioRef.current.currentTime + 10);
@@ -323,7 +367,8 @@ const AudioPlayer = ({ audioUrl, onDownload, generationInfo }) => {
             disabled={isLoading || error}
             title="Avancer de 10 secondes"
           >
-            +10s
+            <span className="btn-icon">⏩</span>
+            <span className="btn-text">+10s</span>
           </button>
         </div>
       </div>

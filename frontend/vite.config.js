@@ -21,6 +21,15 @@ export default defineConfig({
     strictPort: true,     // Échouer si le port n'est pas disponible
     host: true,           // Accessible depuis le réseau local
     cors: true,           // CORS activé pour l'API
+
+    // Proxy pour l'API backend
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+        secure: false
+      }
+    }
   },
   
   // Optimisations de build pour production
