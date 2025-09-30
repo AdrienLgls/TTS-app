@@ -29,8 +29,8 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }) => {
   // Gestion des erreurs de récupération
   const [error, setError] = useState(null);
 
-  // Configuration API (coherte avec TTSInterface)
-  const API_BASE_URL = '/api';
+  // Configuration API (API Kokoro TTS)
+  const TTS_API_URL = import.meta.env.VITE_TTS_API_URL || 'http://localhost:8000';
 
   // ===============================
   // CHARGEMENT DES DONNÉES
@@ -48,9 +48,15 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }) => {
     const fetchVoices = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_BASE_URL}/voices`);
-        setVoices(response.data);
-        console.log('✅ Voix chargées:', response.data);
+        const response = await axios.get(`${TTS_API_URL}/voices`);
+
+        // Vérifier que la réponse est bien un tableau JSON
+        if (Array.isArray(response.data)) {
+          setVoices(response.data);
+          console.log('✅ Voix chargées:', response.data);
+        } else {
+          throw new Error('Réponse API invalide - format non reconnu');
+        }
       } catch (error) {
         console.error('❌ Erreur chargement voix:', error);
         
@@ -105,66 +111,83 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }) => {
 
   if (loading) {
     return (
-      <div className="voice-selector">
-        <label className="control-label">Voix</label>
+      <div className="voice-selector modern">
+        <div className="selector-header">
+          <h4 className="selector-title">💭 Sélection de voix</h4>
+        </div>
         <div className="voice-loading">
-          <span>Chargement des voix...</span>
+          <div className="loading-spinner">⟳</div>
+          <span>Chargement des voix disponibles...</span>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="voice-selector">
-      <label className="control-label">
-        Voix {error && <span className="error-indicator">⚠</span>}
-      </label>
-      
+    <div className="voice-selector modern">
+      <div className="selector-header">
+        <h4 className="selector-title">🎭 Sélection de voix</h4>
+        {error && <span className="error-indicator">⚠️</span>}
+      </div>
+
       {error && (
-        <div className="voice-error">
-          {error}
+        <div className="voice-error modern-alert">
+          <div className="alert-icon">⚠️</div>
+          <div className="alert-content">
+            <span>{error}</span>
+          </div>
         </div>
       )}
 
-      <div className="voice-options">
-        {voices.map((voice) => (
+      <div className="voice-options-grid">
+        {Array.isArray(voices) && voices.map((voice) => (
           <div
             key={voice.id}
-            className={`voice-option ${selectedVoice === voice.id ? 'selected' : ''} ${voice.recommended ? 'recommended' : ''}`}
+            className={`voice-card ${
+              selectedVoice === voice.id ? 'selected' : ''
+            } ${
+              voice.recommended ? 'recommended' : ''
+            }`}
             onClick={() => handleVoiceChange(voice.id)}
           >
-            <div className="voice-header">
-              <span className="voice-name">
-                {voice.name}
-                {voice.recommended && <span className="recommended-badge">Recommandé</span>}
-              </span>
-              <span className="voice-gender">{voice.gender}</span>
-            </div>
-            
-            <div className="voice-description">
-              {voice.description}
-            </div>
-            
-            <div className="voice-meta">
-              <span className="voice-language">{voice.language}</span>
-              <span className="voice-id">({voice.id})</span>
+            {voice.recommended && (
+              <div className="recommended-badge">
+                ⭐ Recommandée
+              </div>
+            )}
+
+            <div className="voice-info">
+              <div className="voice-avatar">
+                {voice.gender === 'female' ? '👩' : '👨'}
+              </div>
+
+              <div className="voice-details">
+                <h5 className="voice-name">{voice.name}</h5>
+                <p className="voice-description">{voice.description}</p>
+
+                <div className="voice-meta">
+                  <span className="voice-tag gender">{voice.gender}</span>
+                  <span className="voice-tag language">{voice.language}</span>
+                </div>
+              </div>
             </div>
 
             {selectedVoice === voice.id && (
               <div className="selection-indicator">
-                Sélectionnée
+                <div className="check-icon">✓</div>
               </div>
             )}
           </div>
         ))}
       </div>
 
-      {/* Preview section - pour futurs tests rapides */}
-      <div className="voice-preview">
-        <span className="preview-label">Sélection actuelle :</span>
-        <span className="preview-voice">
-          {voices.find(v => v.id === selectedVoice)?.name || selectedVoice}
-        </span>
+      <div className="current-selection">
+        <div className="selection-info">
+          <span className="selection-label">Voix sélectionnée :</span>
+          <span className="selection-value">
+            {Array.isArray(voices) ? voices.find(v => v.id === selectedVoice)?.name || selectedVoice : selectedVoice}
+          </span>
+        </div>
       </div>
     </div>
   );
