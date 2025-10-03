@@ -98,6 +98,25 @@ async def verify_current_user(request: Request, credentials: HTTPAuthorizationCr
 
     return {"user_id": user_id, "email": payload.get("email")}
 
+async def get_current_user_optional(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)) -> Optional[dict]:
+    """Obtenir l'utilisateur actuel (optionnel, ne lève pas d'erreur si non connecté)"""
+    try:
+        token = await get_current_user_token(request, credentials)
+        if not token:
+            return None
+
+        payload = verify_token(token)
+        if not payload:
+            return None
+
+        user_id: str = payload.get("sub")
+        if not user_id:
+            return None
+
+        return {"user_id": user_id, "email": payload.get("email")}
+    except Exception:
+        return None
+
 def create_secure_cookie_config():
     """Configuration pour les cookies sécurisés"""
     return {

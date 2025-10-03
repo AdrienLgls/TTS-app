@@ -1,0 +1,140 @@
+.payment-result {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 2rem;
+}
+
+.payment-card {
+  background: white;
+  border-radius: 24px;
+  padding: 3rem;
+  max-width: 600px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.5s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.icon-large {
+  font-size: 5rem;
+  margin-bottom: 1rem;
+  animation: bounce 0.6s ease-out;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-20px); }
+}
+
+.spinner-large {
+  font-size: 4rem;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.payment-card h2 {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  color: #1a1f36;
+}
+
+.payment-card p {
+  font-size: 1.2rem;
+  color: #6b7280;
+  margin-bottom: 2rem;
+}
+
+.success-message {
+  color: #059669;
+  font-weight: 500;
+}
+
+.success-message strong {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.benefits-box {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 16px;
+  padding: 2rem;
+  margin: 2rem 0;
+  text-align: left;
+}
+
+.benefits-box h3 {
+  font-size: 1.3rem;
+  color: #1a1f36;
+  margin-bottom: 1rem;
+  text-align: center;
+}
+
+.benefits-box ul {
+  list-style: none;
+  padding: 0;
+}
+
+.benefits-box li {
+  font-size: 1.1rem;
+  color: #374151;
+  margin: 0.75rem 0;
+  padding-left: 0.5rem;
+}
+
+.result-button {
+  width: 100%;
+  padding: 1.5rem;
+  font-size: 1.2rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+}
+
+.result-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.payment-card.verifying {
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+}
+
+.payment-card.verifying h2 {
+  color: #0284c7;
+}
+
+.payment-card.error .icon-large {
+  color: #ef4444;
+}
+
+.payment-card.error h2 {
+  color: #dc2626;
+}
+
+.payment-card.error p {
+  color: #991b1b;
+}

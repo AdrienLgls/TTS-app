@@ -10,6 +10,8 @@ from dotenv import load_dotenv
 from database import connect_to_mongo, close_mongo_connection, init_db, test_connection
 from routes.auth import router as auth_router
 from routes.generations import router as generations_router
+from routes.stripe_routes import router as stripe_router
+from routes.voice_cloning import router as voice_cloning_router
 from auth.security import verify_current_user
 
 # Charger les variables d'environnement
@@ -67,6 +69,16 @@ app.include_router(auth_router, prefix="/api")
 
 # Routes des générations
 app.include_router(generations_router, prefix="/api")
+
+# Routes Stripe
+app.include_router(stripe_router, prefix="/api")
+
+# Routes Voice Cloning
+app.include_router(voice_cloning_router, prefix="/api")
+
+# Servir les fichiers uploadés et les modèles clonés
+app.mount("/uploaded_voices", StaticFiles(directory="uploaded_voices"), name="uploaded_voices")
+app.mount("/cloned_models", StaticFiles(directory="cloned_models"), name="cloned_models")
 
 # Route de test
 @app.get("/")

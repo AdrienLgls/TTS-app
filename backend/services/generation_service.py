@@ -37,19 +37,36 @@ class GenerationService:
         # Insérer dans la base de données
         result = await generations_collection.insert_one(generation_doc)
 
+        # Récupérer l'utilisateur pour vérifier la date de dernière génération
+        user = await users_collection.find_one({"_id": ObjectId(user_id)})
+        now = datetime.utcnow()
+
+        # Réinitialiser le compteur quotidien si on est un nouveau jour
+        update_fields = {
+            "$inc": {
+                "total_generations": 1,
+                "monthly_generations": 1,
+                "total_audio_duration": generation_data.audio_duration or 0,
+                "daily_generations": 1
+            },
+            "$set": {
+                "last_generation": now,
+                "last_generation_date": now
+            }
+        }
+
+        # Si la dernière génération était hier ou avant, réinitialiser le compteur quotidien
+        if user and user.get("last_generation_date"):
+            last_date = user["last_generation_date"]
+            if last_date.date() < now.date():
+                # Nouveau jour, réinitialiser le compteur
+                update_fields["$set"]["daily_generations"] = 1
+                del update_fields["$inc"]["daily_generations"]
+
         # Mettre à jour les statistiques utilisateur
         await users_collection.update_one(
             {"_id": ObjectId(user_id)},
-            {
-                "$inc": {
-                    "total_generations": 1,
-                    "monthly_generations": 1,
-                    "total_audio_duration": generation_data.audio_duration or 0
-                },
-                "$set": {
-                    "last_generation": datetime.utcnow()
-                }
-            }
+            update_fields
         )
 
         # Retourner la génération créée

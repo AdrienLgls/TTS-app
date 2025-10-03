@@ -46,6 +46,67 @@
     color: #f87171;
 }
 
+/* Séparateur pour les voix clonées */
+.voices-divider {
+    grid-column: 1 / -1;
+    margin: 2rem 0 1rem;
+    padding: 1rem 0;
+    border-top: 2px solid #e5e7eb;
+    text-align: center;
+}
+
+.voices-divider span {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    font-size: 1.1rem;
+    font-weight: 700;
+}
+
+/* Badge voix clonée */
+.cloned-badge {
+    position: absolute;
+    top: 0.75rem;
+    right: 0.75rem;
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: white;
+    padding: 0.4rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    box-shadow: 0 4px 12px rgba(255, 215, 0, 0.3);
+    z-index: 2;
+}
+
+/* Style spécial pour les cartes de voix clonées */
+.voice-card.cloned {
+    border: 2px solid #FFD700;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.05) 0%, rgba(255, 165, 0, 0.05) 100%);
+}
+
+.voice-card.cloned:hover {
+    border-color: #FFA500;
+    box-shadow: 0 12px 40px rgba(255, 215, 0, 0.2);
+}
+
+.voice-card.cloned.selected {
+    border-color: #FFD700;
+    background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 165, 0, 0.1) 100%);
+}
+
+/* Tag pour voix clonée */
+.voice-tag.cloned {
+    background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+    color: white;
+    font-weight: 600;
+}
+
+.voice-tag.status {
+    background: rgba(16, 185, 129, 0.1);
+    color: #059669;
+}
+
 /* État de chargement */
 .voice-loading {
     display: flex;

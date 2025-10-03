@@ -6,6 +6,10 @@ import TTSInterface from './components/TTSInterface'
 import Login from './components/Login'
 import Register from './components/Register'
 import ProtectedRoute from './components/ProtectedRoute'
+import PremiumUpgrade from './components/PremiumUpgrade'
+import PaymentSuccess from './components/PaymentSuccess'
+import PaymentCancel from './components/PaymentCancel'
+import VoiceCloning from './components/VoiceCloning'
 
 function App() {
   return (
@@ -16,6 +20,10 @@ function App() {
           <Route path="/app" element={<TTSApp />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
+          <Route path="/premium" element={<PremiumUpgrade />} />
+          <Route path="/success" element={<PaymentSuccess />} />
+          <Route path="/cancel" element={<PaymentCancel />} />
+          <Route path="/voice-cloning" element={<VoiceCloning />} />
         </Routes>
       </Router>
     </AuthProvider>

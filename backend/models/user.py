@@ -18,6 +18,8 @@ class UserInDB(UserBase):
     id: str
     hashed_password: str
     is_active: bool = True
+    is_premium: bool = False
+    premium_since: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
@@ -26,6 +28,8 @@ class UserInDB(UserBase):
     total_audio_duration: float = 0.0
     monthly_generations: int = 0
     last_generation: Optional[datetime] = None
+    daily_generations: int = 0
+    last_generation_date: Optional[datetime] = None
 
     # Configuration utilisateur
     favorite_voices: List[str] = []
@@ -35,9 +39,11 @@ class UserInDB(UserBase):
 class UserResponse(UserBase):
     id: str
     is_active: bool
+    is_premium: bool = False
     created_at: datetime
     total_generations: int
     monthly_generations: int
+    daily_generations: int
     favorite_voices: List[str]
     default_voice: str
     default_speed: float

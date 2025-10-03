@@ -11,7 +11,7 @@
  * Optimisé pour l'API Kokoro v0.19 avec gestion avancée des performances.
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
@@ -52,6 +52,15 @@ const TTSInterface = () => {
   // Gestion des erreurs utilisateur
   const [error, setError] = useState(null);
 
+  // Limites de l'utilisateur
+  const [limits, setLimits] = useState({
+    char_limit: 300,
+    daily_limit: 1,
+    daily_used: 0,
+    daily_remaining: 1,
+    is_premium: false
+  });
+
   // ===============================
   // RÉFÉRENCES ET CONFIGURATION
   // ===============================
@@ -64,6 +73,51 @@ const TTSInterface = () => {
 
   // URL de l'API TTS Kokoro
   const TTS_API_URL = import.meta.env.VITE_TTS_API_URL || 'http://localhost:8000';
+
+  // ===============================
+  // EFFETS
+  // ===============================
+
+  // Charger les limites de l'utilisateur au chargement
+  useEffect(() => {
+    fetchUserLimits();
+  }, [user]);
+
+  const fetchUserLimits = async () => {
+    try {
+      // Pour les utilisateurs non connectés, gérer les limites localement
+      if (!user) {
+        const today = new Date().toDateString();
+        const stored = localStorage.getItem('guest_usage');
+        let guestUsage = stored ? JSON.parse(stored) : { date: today, count: 0 };
+
+        // Réinitialiser si c'est un nouveau jour
+        if (guestUsage.date !== today) {
+          guestUsage = { date: today, count: 0 };
+          localStorage.setItem('guest_usage', JSON.stringify(guestUsage));
+        }
+
+        setLimits({
+          char_limit: 300,
+          daily_limit: 1,
+          daily_used: guestUsage.count,
+          daily_remaining: Math.max(0, 1 - guestUsage.count),
+          is_premium: false
+        });
+        return;
+      }
+
+      // Pour les utilisateurs connectés
+      const response = await axios.get(`${API_BASE_URL}/generations/limits`, {
+        withCredentials: true
+      });
+      if (response.data.success) {
+        setLimits(response.data.limits);
+      }
+    } catch (error) {
+      console.error('Erreur lors de la récupération des limites:', error);
+    }
+  };
 
   // ===============================
   // FONCTIONS MÉTIERS
@@ -84,10 +138,25 @@ const TTSInterface = () => {
       return;
     }
 
-    // Limite dynamique selon l'authentification
-    const maxLength = user ? 2000 : 300;
-    if (text.length > maxLength) {
-      setError(`Le texte ne peut pas dépasser ${maxLength} caractères${!user ? ' (connectez-vous pour 2000 caractères)' : ''}`);
+    // Vérifier les limites avant de générer
+    if (text.length > limits.char_limit) {
+      if (limits.is_premium) {
+        setError(`Le texte ne peut pas dépasser ${limits.char_limit.toLocaleString()} caractères`);
+      } else if (user) {
+        setError(`Le texte ne peut pas dépasser ${limits.char_limit} caractères (connecté). Passez Premium pour 100 000 caractères !`);
+      } else {
+        setError(`Le texte ne peut pas dépasser ${limits.char_limit} caractères (non connecté). Connectez-vous pour 2 000 caractères !`);
+      }
+      return;
+    }
+
+    // Vérifier la limite quotidienne (sauf pour Premium)
+    if (limits.daily_limit !== null && limits.daily_remaining <= 0) {
+      if (user) {
+        setError(`Limite quotidienne atteinte (${limits.daily_limit} générations/jour). Passez Premium pour un accès illimité !`);
+      } else {
+        setError(`Vous avez atteint votre limite quotidienne. Connectez-vous pour plus de générations !`);
+      }
       return;
     }
 
@@ -96,67 +165,128 @@ const TTSInterface = () => {
     setAudioUrl(null);
 
     try {
-      console.log('🎤 Génération audio avec:', { text: text.substring(0, 50) + '...', voice: selectedVoice, speed });
+      // Détecter si c'est une voix clonée (commence par "cloned-")
+      const isClonedVoice = selectedVoice.startsWith('cloned-');
 
-      const response = await axios.post(`${TTS_API_URL}/tts`, {
-        text: text,
-        voice: selectedVoice,
-        speed: speed,
-        format: 'wav'
-      });
+      if (isClonedVoice) {
+        // Génération avec voix clonée via le backend principal
+        console.log('🎤 Génération avec voix clonée:', { text: text.substring(0, 50) + '...', voice: selectedVoice });
 
-      if (response.data.success) {
-        const audioFullUrl = `${TTS_API_URL}${response.data.audio_url}`;
-        setAudioUrl(audioFullUrl);
+        const voiceId = selectedVoice.replace('cloned-', '');
+        const formData = new FormData();
+        formData.append('text', text);
+        formData.append('language', 'en'); // TODO: Détecter la langue automatiquement
 
-        // Sauvegarder les infos de la génération
-        setLastGeneration({
+        const response = await axios.post(
+          `${API_BASE_URL}/voice-cloning/generate/${voiceId}`,
+          formData,
+          {
+            headers: { 'Content-Type': 'multipart/form-data' },
+            withCredentials: true
+          }
+        );
+
+        if (response.data.success) {
+          // Pour les voix clonées, l'URL est déjà complète (commence par /)
+          // On utilise juste le domaine sans /api
+          const baseUrl = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:3000';
+          const audioFullUrl = `${baseUrl}${response.data.audio_url}`;
+          setAudioUrl(audioFullUrl);
+
+          setLastGeneration({
+            text: text,
+            voice: response.data.voice_name,
+            speed: 1.0,
+            audio_url: audioFullUrl
+          });
+
+          console.log('✅ Audio généré avec voix clonée:', audioFullUrl);
+        }
+      } else {
+        // Génération normale avec Kokoro
+        console.log('🎤 Génération audio avec Kokoro:', { text: text.substring(0, 50) + '...', voice: selectedVoice, speed });
+
+        const response = await axios.post(`${TTS_API_URL}/tts`, {
           text: text,
           voice: selectedVoice,
           speed: speed,
-          duration: response.data.audio_duration,
-          generationTime: response.data.generation_time,
-          segments: response.data.segments_count,
-          timestamp: new Date().toLocaleTimeString()
+          format: 'wav'
         });
 
-        console.log('✅ Audio généré:', response.data);
+        if (response.data.success) {
+          const audioFullUrl = `${TTS_API_URL}${response.data.audio_url}`;
+          setAudioUrl(audioFullUrl);
 
-        // Sauvegarder dans l'historique si l'utilisateur est connecté
-        if (user) {
-          try {
-            await axios.post(`${API_BASE_URL}/generations`, {
-              text: text,
-              voice: selectedVoice,
-              speed: speed,
-              audio_url: response.data.audio_url,
-              audio_duration: response.data.audio_duration,
-              generation_time: response.data.generation_time
-            }, {
-              withCredentials: true
-            });
-            console.log('✅ Génération sauvegardée dans l\'historique');
+          // Sauvegarder les infos de la génération
+          setLastGeneration({
+            text: text,
+            voice: selectedVoice,
+            speed: speed,
+            duration: response.data.audio_duration,
+            generationTime: response.data.generation_time,
+            segments: response.data.segments_count,
+            timestamp: new Date().toLocaleTimeString()
+          });
 
-            // Déclencher un événement pour rafraîchir l'historique
-            window.dispatchEvent(new Event('historyUpdated'));
-          } catch (saveError) {
-            console.error('⚠️ Erreur lors de la sauvegarde dans l\'historique:', saveError);
-            // On ne bloque pas l'utilisateur si la sauvegarde échoue
+          console.log('✅ Audio généré:', response.data);
+
+          // Sauvegarder dans l'historique si l'utilisateur est connecté
+          if (user) {
+            try {
+              await axios.post(`${API_BASE_URL}/generations`, {
+                text: text,
+                voice: selectedVoice,
+                speed: speed,
+                audio_url: response.data.audio_url,
+                audio_duration: response.data.audio_duration,
+                generation_time: response.data.generation_time
+              }, {
+                withCredentials: true
+              });
+              console.log('✅ Génération sauvegardée dans l\'historique');
+
+              // Déclencher un événement pour rafraîchir l'historique
+              window.dispatchEvent(new Event('historyUpdated'));
+
+              // Rafraîchir les limites après génération
+              await fetchUserLimits();
+            } catch (saveError) {
+              console.error('⚠️ Erreur lors de la sauvegarde dans l\'historique:', saveError);
+              // On ne bloque pas l'utilisateur si la sauvegarde échoue
+            }
+          } else {
+            // Pour les utilisateurs non connectés, incrémenter le compteur local
+            const today = new Date().toDateString();
+            const stored = localStorage.getItem('guest_usage');
+            let guestUsage = stored ? JSON.parse(stored) : { date: today, count: 0 };
+
+          if (guestUsage.date !== today) {
+            guestUsage = { date: today, count: 1 };
+          } else {
+            guestUsage.count += 1;
           }
+
+          localStorage.setItem('guest_usage', JSON.stringify(guestUsage));
+
+          // Rafraîchir les limites
+          await fetchUserLimits();
         }
-      } else {
-        throw new Error(response.data.message || 'Erreur lors de la génération');
+        } else {
+          throw new Error(response.data.message || 'Erreur lors de la génération');
+        }
       }
 
     } catch (error) {
       console.error('❌ Erreur génération:', error);
-      
+
       if (error.response) {
         // Erreur de l'API
-        setError(`Erreur API: ${error.response.data.detail || error.response.status}`);
+        const detail = error.response.data?.detail || error.response.data?.message || error.response.status;
+        setError(`Erreur API: ${detail}`);
       } else if (error.request) {
         // Erreur réseau
-        setError('Impossible de contacter l\'API. Vérifiez qu\'elle est démarrée sur localhost:8000');
+        const apiName = selectedVoice.startsWith('cloned-') ? 'Backend (port 3000)' : 'Kokoro (port 8000)';
+        setError(`Impossible de contacter ${apiName}. Vérifiez qu'il est démarré.`);
       } else {
         // Autre erreur
         setError(`Erreur: ${error.message}`);
@@ -218,10 +348,21 @@ const TTSInterface = () => {
           <Link to="/" className="logo">VoiceAI</Link>
           <div className="nav-links">
             <Link to="/" className="nav-link">Accueil</Link>
+            {user?.is_premium && (
+              <Link to="/voice-cloning" className="nav-link">🎤 Clonage Vocal</Link>
+            )}
             <div className="user-info">
               {user ? (
                 <>
                   <span className="user-greeting">Bonjour, {user.name}</span>
+                  {!limits.is_premium && (
+                    <Link to="/premium" className="premium-link">
+                      ✨ Premium
+                    </Link>
+                  )}
+                  {limits.is_premium && (
+                    <span className="premium-badge-header">✨ Premium</span>
+                  )}
                   <button onClick={logout} className="logout-btn">Déconnexion</button>
                 </>
               ) : (
@@ -245,18 +386,34 @@ const TTSInterface = () => {
           <div className="text-input-section glass-card">
             <div className="section-header">
               <h3 className="section-title">Votre texte</h3>
-              <span className="char-counter">{text.length}/{user ? '2000' : '300'} caractères</span>
+              <div className="limits-display">
+                <span className="char-counter">{text.length}/{limits.char_limit.toLocaleString()} caractères</span>
+                {limits.daily_limit !== null && (
+                  <span className="daily-counter">
+                    {limits.daily_remaining}/{limits.daily_limit} audio restants aujourd'hui
+                  </span>
+                )}
+                {limits.is_premium && (
+                  <span className="premium-badge-small">✨ Premium</span>
+                )}
+              </div>
             </div>
 
             <textarea
               ref={textareaRef}
               id="text-input"
               className="text-input modern-input"
-              placeholder={user ? "Saisissez le texte à convertir en audio..." : "Saisissez un texte court (max 300 caractères) - Connectez-vous pour plus !"}
+              placeholder={
+                limits.is_premium
+                  ? "Saisissez le texte à convertir en audio (jusqu'à 100 000 caractères)..."
+                  : user
+                  ? "Saisissez le texte à convertir en audio (max 2 000 caractères)..."
+                  : "Saisissez un texte court (max 300 caractères) - Connectez-vous pour plus !"
+              }
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={6}
-              maxLength={user ? 2000 : 300}
+              maxLength={limits.char_limit}
             />
 
             {/* Exemples de texte */}
@@ -383,6 +540,36 @@ const TTSInterface = () => {
                 </Link>
                 <Link to="/login" className="btn-secondary">
                   Se connecter
+                </Link>
+              </div>
+            </div>
+          )}
+
+          {/* Carte Premium pour utilisateurs gratuits */}
+          {user && !limits.is_premium && (
+            <div className="premium-upgrade-card glass-card">
+              <div className="premium-card-content">
+                <div className="premium-icon">✨</div>
+                <div className="premium-text">
+                  <h3>Passez Premium</h3>
+                  <p>Débloquez toutes les fonctionnalités avancées :</p>
+                  <ul className="premium-features-list">
+                    <li>✅ <strong>100 000 caractères</strong> par génération (au lieu de 2 000)</li>
+                    <li>✅ <strong>Générations illimitées</strong> par jour (au lieu de 10)</li>
+                    <li>✅ <strong>Téléchargement</strong> de tous vos fichiers</li>
+                    <li>✅ <strong>Historique complet</strong> sans limite</li>
+                    <li>✅ <strong>Support prioritaire</strong></li>
+                  </ul>
+                  <div className="premium-price">
+                    <span className="price-amount">9,99 €</span>
+                    <span className="price-period">paiement unique</span>
+                  </div>
+                </div>
+              </div>
+              <div className="premium-card-action">
+                <Link to="/premium" className="btn-premium">
+                  <span>✨</span>
+                  <span>Passer Premium</span>
                 </Link>
               </div>
             </div>

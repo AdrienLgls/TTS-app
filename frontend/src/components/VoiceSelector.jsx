@@ -12,6 +12,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import './VoiceSelector.css';
 
@@ -19,18 +20,24 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }) => {
   // ===============================
   // ÉTATS DU COMPOSANT
   // ===============================
-  
+
+  const { user } = useAuth();
+
   // Liste des voix disponibles avec métadonnées enrichies
   const [voices, setVoices] = useState([]);
-  
+
+  // Liste des voix clonées de l'utilisateur
+  const [clonedVoices, setClonedVoices] = useState([]);
+
   // État de chargement des voix depuis l'API
   const [loading, setLoading] = useState(true);
-  
+
   // Gestion des erreurs de récupération
   const [error, setError] = useState(null);
 
   // Configuration API (API Kokoro TTS)
   const TTS_API_URL = import.meta.env.VITE_TTS_API_URL || 'http://localhost:8000';
+  const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
   // ===============================
   // CHARGEMENT DES DONNÉES
@@ -59,7 +66,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }) => {
         }
       } catch (error) {
         console.error('❌ Erreur chargement voix:', error);
-        
+
         // Configuration de fallback basée sur les tests validés
         // Garantit le fonctionnement même en cas de problème API
         setVoices([
@@ -75,7 +82,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }) => {
             id: "af_bella",
             name: "Bella",
             description: "Voix féminine claire et articulée",
-            language: "en-US", 
+            language: "en-US",
             gender: "female",
             recommended: false
           },
@@ -84,7 +91,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }) => {
             name: "Sarah",
             description: "Voix féminine douce et naturelle",
             language: "en-US",
-            gender: "female", 
+            gender: "female",
             recommended: false
           }
         ]);
@@ -96,6 +103,28 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }) => {
 
     fetchVoices();
   }, []);
+
+  // Charger les voix clonées si l'utilisateur est Premium
+  useEffect(() => {
+    const fetchClonedVoices = async () => {
+      if (!user?.is_premium) return;
+
+      try {
+        const response = await axios.get(`${API_BASE_URL}/voice-cloning/my-voices`, {
+          withCredentials: true
+        });
+
+        if (response.data.success) {
+          setClonedVoices(response.data.voices);
+          console.log('✅ Voix clonées chargées:', response.data.voices);
+        }
+      } catch (error) {
+        console.error('❌ Erreur chargement voix clonées:', error);
+      }
+    };
+
+    fetchClonedVoices();
+  }, [user]);
 
   /**
    * Gestionnaire de changement de voix
@@ -140,6 +169,7 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }) => {
       )}
 
       <div className="voice-options-grid">
+        {/* Voix pré-entraînées */}
         {Array.isArray(voices) && voices.map((voice) => (
           <div
             key={voice.id}
@@ -179,6 +209,52 @@ const VoiceSelector = ({ selectedVoice, onVoiceChange }) => {
             )}
           </div>
         ))}
+
+        {/* Voix clonées (Premium uniquement) */}
+        {clonedVoices.length > 0 && (
+          <>
+            <div className="voices-divider">
+              <span>✨ Mes voix clonées</span>
+            </div>
+            {clonedVoices.map((voice) => (
+              <div
+                key={`cloned-${voice.id}`}
+                className={`voice-card cloned ${
+                  selectedVoice === `cloned-${voice.id}` ? 'selected' : ''
+                }`}
+                onClick={() => handleVoiceChange(`cloned-${voice.id}`)}
+              >
+                <div className="cloned-badge">
+                  🎤 Clonée
+                </div>
+
+                <div className="voice-info">
+                  <div className="voice-avatar">
+                    ⭐
+                  </div>
+
+                  <div className="voice-details">
+                    <h5 className="voice-name">{voice.name}</h5>
+                    <p className="voice-description">
+                      {voice.description || 'Voix personnalisée'}
+                    </p>
+
+                    <div className="voice-meta">
+                      <span className="voice-tag cloned">Personnalisée</span>
+                      <span className="voice-tag status">{voice.status === 'ready' ? '✅ Prêt' : '⏳ En cours'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {selectedVoice === `cloned-${voice.id}` && (
+                  <div className="selection-indicator">
+                    <div className="check-icon">✓</div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       <div className="current-selection">

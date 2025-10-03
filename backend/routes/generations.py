@@ -1,9 +1,56 @@
 from fastapi import APIRouter, HTTPException, status, Depends, Request
+from typing import Optional
 from models.generation import GenerationCreate, GenerationResponse
 from services.generation_service import GenerationService
-from auth.security import verify_current_user
+from services.limits_service import LimitsService
+from auth.security import verify_current_user, get_current_user_optional
 
 router = APIRouter(prefix="/generations", tags=["generations"])
+
+@router.get("/limits", response_model=dict)
+async def get_limits(
+    request: Request,
+    current_user: Optional[dict] = Depends(get_current_user_optional)
+):
+    """Récupérer les limites de l'utilisateur"""
+    try:
+        user_id = current_user["user_id"] if current_user else None
+        limits = await LimitsService.get_user_limits(user_id)
+
+        return {
+            "success": True,
+            "limits": limits
+        }
+
+    except Exception as e:
+        print(f"Erreur lors de la récupération des limites: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur lors de la récupération des limites"
+        )
+
+@router.post("/check-limits", response_model=dict)
+async def check_limits(
+    request: Request,
+    text_length: int,
+    current_user: Optional[dict] = Depends(get_current_user_optional)
+):
+    """Vérifier si l'utilisateur peut générer un audio"""
+    try:
+        user_id = current_user["user_id"] if current_user else None
+        limits = await LimitsService.check_generation_limits(user_id, text_length)
+
+        return {
+            "success": True,
+            **limits
+        }
+
+    except Exception as e:
+        print(f"Erreur lors de la vérification des limites: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Erreur lors de la vérification des limites"
+        )
 
 @router.post("/", response_model=dict)
 async def create_generation(

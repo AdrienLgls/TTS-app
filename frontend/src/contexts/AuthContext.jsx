@@ -92,13 +92,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const refreshUser = async () => {
+    await checkAuthStatus();
+  };
+
   const value = {
     user,
     login,
     register,
     logout,
     loading,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    refreshUser
   };
 
   return (
