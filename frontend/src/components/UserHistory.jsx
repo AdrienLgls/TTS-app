@@ -60,6 +60,10 @@ const UserHistory = () => {
   };
 
   const formatDuration = (seconds) => {
+    // Gérer le cas null/undefined
+    if (seconds === null || seconds === undefined) {
+      return 'N/A';
+    }
     if (seconds < 60) {
       return `${seconds.toFixed(1)}s`;
     }
@@ -127,7 +131,12 @@ const UserHistory = () => {
                   <button
                     className="action-btn play"
                     onClick={() => {
-                      const audioFullUrl = `${TTS_API_URL}${generation.audio_url}`;
+                      // Détecter si c'est une voix clonée (commence par "cloned-")
+                      const isClonedVoice = generation.voice.startsWith('cloned-');
+                      const baseUrl = isClonedVoice
+                        ? (API_BASE_URL?.replace('/api', '') || 'http://localhost:3000')
+                        : TTS_API_URL;
+                      const audioFullUrl = `${baseUrl}${generation.audio_url}`;
                       const audio = new Audio(audioFullUrl);
                       audio.play();
                     }}
@@ -138,7 +147,12 @@ const UserHistory = () => {
                   <button
                     className="action-btn download"
                     onClick={() => {
-                      const audioFullUrl = `${TTS_API_URL}${generation.audio_url}`;
+                      // Détecter si c'est une voix clonée (commence par "cloned-")
+                      const isClonedVoice = generation.voice.startsWith('cloned-');
+                      const baseUrl = isClonedVoice
+                        ? (API_BASE_URL?.replace('/api', '') || 'http://localhost:3000')
+                        : TTS_API_URL;
+                      const audioFullUrl = `${baseUrl}${generation.audio_url}`;
                       const link = document.createElement('a');
                       link.href = audioFullUrl;
                       link.download = `voiceai-${generation.id}.wav`;

@@ -10,6 +10,8 @@ from concurrent.futures import ThreadPoolExecutor
 from auth.security import verify_current_user
 from database import get_database
 from models.cloned_voice import ClonedVoiceCreate, ClonedVoiceResponse
+from services.generation_service import GenerationService
+from models.generation import GenerationCreate
 
 # Importer TTS uniquement si disponible (Python 3.11 requis)
 TTS_AVAILABLE = False
@@ -341,6 +343,8 @@ async def generate_with_cloned_voice(
         print(f"🎤 Génération avec voix clonée: {voice_doc['name']}")
         print(f"📝 Texte: {text[:50]}...")
 
+        generation_start = datetime.now()
+
         def generate_audio():
             """Fonction synchrone pour la génération"""
             tts = get_tts_instance()
@@ -357,10 +361,31 @@ async def generate_with_cloned_voice(
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(executor, generate_audio)
 
+        generation_time = (datetime.now() - generation_start).total_seconds()
+
         print(f"✅ Audio généré: {output_path}")
 
         # Retourner l'URL du fichier audio
         audio_url = f"/cloned_models/{output_filename}"
+
+        # Sauvegarder dans l'historique
+        try:
+            generation_data = GenerationCreate(
+                text=text,
+                voice=f"cloned-{voice_id}",  # Préfixe pour identifier les voix clonées
+                speed=1.0,
+                audio_url=audio_url,
+                audio_duration=None,  # Pourrait être calculé si nécessaire
+                generation_time=generation_time
+            )
+            await GenerationService.create_generation(
+                user_id=current_user["user_id"],
+                generation_data=generation_data
+            )
+            print(f"💾 Génération sauvegardée dans l'historique")
+        except Exception as e:
+            print(f"⚠️  Erreur sauvegarde historique: {e}")
+            # Ne pas bloquer si la sauvegarde échoue
 
         return {
             "success": True,
